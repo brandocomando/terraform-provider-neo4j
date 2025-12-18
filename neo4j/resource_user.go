@@ -69,14 +69,14 @@ func resourceUserCreate(ctx context.Context, d *schema.ResourceData, m interface
 	d.SetId(d.Get("name").(string))
 
 	roles := d.Get("roles").(*schema.Set).List()
-	var roleList []string
 	if len(roles) > 0 {
+		// Grant each role individually
 		for _, role := range roles {
-			roleList = append(roleList, role.(string))
-		}
-		_, err = session.Run("GRANT ROLE $roles TO $username", map[string]interface{}{"roles": strings.Join(roleList, ","), "username": d.Get("name")})
-		if err != nil {
-			return diag.FromErr(err)
+			roleName := role.(string)
+			_, err = session.Run("GRANT ROLE $role TO $username", map[string]interface{}{"role": roleName, "username": d.Get("name")})
+			if err != nil {
+				return diag.FromErr(err)
+			}
 		}
 	}
 
@@ -92,9 +92,9 @@ func resourceUserRead(ctx context.Context, d *schema.ResourceData, m interface{}
 		return diag.FromErr(err)
 	}
 	defer c.Close()
-	session := c.NewSession(neo4j.SessionConfig{AccessMode: neo4j.AccessModeRead})
+	session := c.NewSession(neo4j.SessionConfig{AccessMode: neo4j.AccessModeRead, DatabaseName: "system"})
 	defer session.Close()
-	result, err := neo4j.Single(session.Run("SHOW USERS YIELD user WHERE user = $username", map[string]interface{}{"username": d.Id()}))
+	result, err := neo4j.Single(session.Run("SHOW USERS YIELD user, roles WHERE user = $username", map[string]interface{}{"username": d.Id()}))
 	if err != nil {
 		if err.Error() == "Result contains no more records" {
 			d.SetId("")
@@ -105,6 +105,25 @@ func resourceUserRead(ctx context.Context, d *schema.ResourceData, m interface{}
 	name, _ := result.Get("user")
 
 	if err := d.Set("name", name); err != nil {
+		return diag.FromErr(err)
+	}
+
+	// Get roles from the same query result
+	rolesValue, ok := result.Get("roles")
+	var roleList []string
+	if ok {
+		rolesInterface := rolesValue.([]interface{})
+		for _, role := range rolesInterface {
+			if roleStr, ok := role.(string); ok {
+				// Filter out the "PUBLIC" role as it's automatically assigned by Neo4j
+				if roleStr != "PUBLIC" {
+					roleList = append(roleList, roleStr)
+				}
+			}
+		}
+	}
+
+	if err := d.Set("roles", roleList); err != nil {
 		return diag.FromErr(err)
 	}
 
@@ -134,23 +153,25 @@ func resourceUserUpdate(ctx context.Context, d *schema.ResourceData, m interface
 		oldRoles, newRoles := d.GetChange("roles")
 		oldRolesSet := oldRoles.(*schema.Set).List()
 		newRolesSet := newRoles.(*schema.Set).List()
-		var roleList []string
+
+		// Revoke old roles individually
 		if len(oldRolesSet) > 0 {
 			for _, role := range oldRolesSet {
-				roleList = append(roleList, role.(string))
-			}
-			_, err = session.Run("REVOKE ROLE $roles FROM $username", map[string]interface{}{"roles": strings.Join(roleList, ","), "username": d.Get("name")})
-			if err != nil {
-				return diag.FromErr(err)
+				roleName := role.(string)
+				_, err = session.Run("REVOKE ROLE $role FROM $username", map[string]interface{}{"role": roleName, "username": d.Get("name")})
+				if err != nil {
+					return diag.FromErr(err)
+				}
 			}
 		}
+		// Grant new roles individually
 		if len(newRolesSet) > 0 {
 			for _, role := range newRolesSet {
-				roleList = append(roleList, role.(string))
-			}
-			_, err = session.Run("GRANT ROLE $roles TO $username", map[string]interface{}{"roles": strings.Join(roleList, ","), "username": d.Get("name")})
-			if err != nil {
-				return diag.FromErr(err)
+				roleName := role.(string)
+				_, err = session.Run("GRANT ROLE $role TO $username", map[string]interface{}{"role": roleName, "username": d.Get("name")})
+				if err != nil {
+					return diag.FromErr(err)
+				}
 			}
 		}
 	}

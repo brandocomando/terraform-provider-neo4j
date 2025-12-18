@@ -20,6 +20,27 @@ func TestResourceUser(t *testing.T) {
 					testAccUserExists("neo4j_user.test"),
 					resource.TestCheckResourceAttr("neo4j_user.test", "name", "testUser"),
 					resource.TestCheckResourceAttr("neo4j_user.test", "password", "testpassword"),
+					resource.TestCheckResourceAttr("neo4j_user.test", "roles.#", "1"),
+				),
+			},
+		},
+	})
+}
+
+func TestResourceUserMultipleRoles(t *testing.T) {
+	resource.Test(t, resource.TestCase{
+		PreCheck:  func() { testAccPreCheck(t) },
+		Providers: testAccProviders,
+		Steps: []resource.TestStep{
+			{
+				Config: testResourceUserConfig_multipleRoles(),
+				Check: resource.ComposeTestCheckFunc(
+					testAccUserExists("neo4j_user.test_multi"),
+					resource.TestCheckResourceAttr("neo4j_user.test_multi", "name", "testUserMulti"),
+					resource.TestCheckResourceAttr("neo4j_user.test_multi", "password", "testpassword"),
+					resource.TestCheckResourceAttr("neo4j_user.test_multi", "roles.#", "2"),
+					resource.TestCheckResourceAttr("neo4j_user.test_multi", "roles.0", "testRole1"),
+					resource.TestCheckResourceAttr("neo4j_user.test_multi", "roles.1", "testRole2"),
 				),
 			},
 		},
@@ -64,6 +85,25 @@ func testResourceUserConfig_basic() string {
 	}
 	resource "neo4j_role" "test_role" {
 		name ="testRole"
+	}
+	`)
+}
+
+func testResourceUserConfig_multipleRoles() string {
+	return fmt.Sprint(`
+	resource "neo4j_user" "test_multi" {
+		name = "testUserMulti"
+		password = "testpassword"
+		roles = [
+			neo4j_role.test_role1.name,
+			neo4j_role.test_role2.name
+		]
+	}
+	resource "neo4j_role" "test_role1" {
+		name = "testRole1"
+	}
+	resource "neo4j_role" "test_role2" {
+		name = "testRole2"
 	}
 	`)
 }
