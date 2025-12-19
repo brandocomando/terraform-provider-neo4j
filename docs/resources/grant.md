@@ -21,6 +21,14 @@ resource "neo4j_grant" "my_grant" {
   role     = neo4j_role.my_role.name
   resource = "all_properties"
 }
+
+# Grant execute procedure privilege
+resource "neo4j_grant" "execute_procedure" {
+  action   = "execute_procedure"
+  graph    = "*"  # Use "*" for DBMS-level, or specific database name
+  role     = neo4j_role.my_role.name
+  resource = "db.schema.visualization"  # Specific procedure, or "*" for all
+}
 ```
 
 ## Argument Reference
@@ -30,7 +38,7 @@ The following arguments are supported:
 * `action` - (Required) The privilege name of the grant. It can be both related to databases or graphs. See [available actions](#available-actions) below for valid values. Please read [the offical documentation](https://neo4j.com/docs/cypher-manual/current/access-control/manage-roles/) for more information.
 * `graph` - (Required) The name of the database or graph associated with the grant. it can be "*" or the specific database or graph name.
 * `role` - (Required) The role associated with the grant.
-* `resource` - (Optional) The resource associated with the grant. Valid values are (depending on the type of action) `all_labels`, `all_properties`,`graph`,`database`,`label(<value>)`,`property(<value>)`.
+* `resource` - (Optional) The resource associated with the grant. Valid values are (depending on the type of action) `all_labels`, `all_properties`,`graph`,`database`,`label(<value>)`,`property(<value>)`. For `execute_procedure` action, this can be a procedure name (e.g., `db.schema.visualization`) or `*` for all procedures.
 * `segment` - (Optional) In the case of graph related grant, you can specify the segment of the grant. Valid values are `NODE(*)`, `RELATIONSHIP(*)`, `NODE(<value>)`, `RELATIONSHIP(<value>)`.
 
 ### Available actions
@@ -64,6 +72,7 @@ The following arguments are supported:
 * name_management (NAME MANAGEMENT)
 * database_actions (ALL DATABASE PRIVILEGES)
 * transaction_management (TRANSACTION MANAGEMENT)
+* execute_procedure (EXECUTE PROCEDURE)
 
 ## Attribute Reference
 

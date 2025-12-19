@@ -82,6 +82,7 @@ func buildQuery(rawAction string, rawResource string, rawGraph string, rawSegmen
 		"name_management":        "NAME MANAGEMENT",
 		"database_actions":       "ALL DATABASE PRIVILEGES",
 		"transaction_management": "TRANSACTION MANAGEMENT",
+		"execute_procedure":      "EXECUTE PROCEDURE",
 	}
 
 	var resourcePrefix = ""
@@ -98,7 +99,7 @@ func buildQuery(rawAction string, rawResource string, rawGraph string, rawSegmen
 		"show_index", "create_constraint", "drop_constraint", "show_constraint",
 		"create_propertykey", "show_transaction", "terminate_transaction", "index",
 		"constraint", "create_label", "create_reltype",
-		"name_management", "database_actions":
+		"name_management", "database_actions", "execute_procedure":
 		grantType = "DATABASE"
 	case "transaction_management":
 		grantType = "DATABASE"
@@ -111,6 +112,33 @@ func buildQuery(rawAction string, rawResource string, rawGraph string, rawSegmen
 	action := actions[rawAction]
 	resource := ""
 	segment := ""
+
+	// Special handling for EXECUTE PROCEDURE - syntax is different
+	if rawAction == "execute_procedure" {
+		procedureName := "*"
+		if rawResource != "" && rawResource != "*" {
+			// Handle procedure(name) format or just name
+			if strings.Contains(rawResource, "procedure(") {
+				procedureName = between(rawResource, "(", ")")
+			} else {
+				procedureName = rawResource
+			}
+		}
+		// For EXECUTE PROCEDURE, use DBMS for system procedures or DATABASE for database-specific
+		// Default to DATABASE with the specified graph
+		databaseScope := "DATABASE"
+		if rawGraph == "*" || rawGraph == "" {
+			databaseScope = "DBMS"
+		} else {
+			databaseScope = fmt.Sprintf("DATABASE `%s`", rawGraph)
+		}
+		toFrom := "TO"
+		if revoke {
+			toFrom = "FROM"
+		}
+		return fmt.Sprintf("GRANT EXECUTE PROCEDURE %s ON %s %s `%s`", procedureName, databaseScope, toFrom, role), nil
+	}
+
 	if strings.Contains(rawResource, "property(") || strings.Contains(rawResource, "label(") {
 		resource = fmt.Sprintf("%s%s%s ", resourcePrefix, between(rawResource, "(", ")"), resourceSuffix)
 	} else if rawResource == "all_properties" || rawResource == "all_labels" {
