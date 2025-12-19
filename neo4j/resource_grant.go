@@ -125,11 +125,9 @@ func buildQuery(rawAction string, rawResource string, rawGraph string, rawSegmen
 			}
 		}
 		// For EXECUTE PROCEDURE, use DBMS for system procedures or DATABASE for database-specific
-		// Default to DATABASE with the specified graph
-		databaseScope := "DATABASE"
-		if rawGraph == "*" || rawGraph == "" {
-			databaseScope = "DBMS"
-		} else {
+		// Handle both "*" and "DBMS" as DBMS-level, everything else is database-specific
+		databaseScope := "DBMS"
+		if rawGraph != "*" && rawGraph != "" && strings.ToUpper(rawGraph) != "DBMS" {
 			databaseScope = fmt.Sprintf("DATABASE `%s`", rawGraph)
 		}
 		toFrom := "TO"
