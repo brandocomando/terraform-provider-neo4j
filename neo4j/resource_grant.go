@@ -79,10 +79,11 @@ func buildQuery(rawAction string, rawResource string, rawGraph string, rawSegmen
 		"constraint":             "CONSTRAINT MANAGEMENT",
 		"create_label":           "CREATE NEW NODE LABEL",
 		"create_reltype":         "CREATE NEW RELATIONSHIP TYPE",
-		"name_management":        "NAME MANAGEMENT",
-		"database_actions":       "ALL DATABASE PRIVILEGES",
-		"transaction_management": "TRANSACTION MANAGEMENT",
-		"execute_procedure":      "EXECUTE PROCEDURE",
+		"name_management":              "NAME MANAGEMENT",
+		"database_actions":             "ALL DATABASE PRIVILEGES",
+		"transaction_management":       "TRANSACTION MANAGEMENT",
+		"execute_procedure":            "EXECUTE PROCEDURE",
+		"execute_user_defined_function": "EXECUTE USER DEFINED FUNCTION",
 	}
 
 	var resourcePrefix = ""
@@ -99,7 +100,7 @@ func buildQuery(rawAction string, rawResource string, rawGraph string, rawSegmen
 		"show_index", "create_constraint", "drop_constraint", "show_constraint",
 		"create_propertykey", "show_transaction", "terminate_transaction", "index",
 		"constraint", "create_label", "create_reltype",
-		"name_management", "database_actions", "execute_procedure":
+		"name_management", "database_actions", "execute_procedure", "execute_user_defined_function":
 		grantType = "DATABASE"
 	case "transaction_management":
 		grantType = "DATABASE"
@@ -135,6 +136,25 @@ func buildQuery(rawAction string, rawResource string, rawGraph string, rawSegmen
 			toFrom = "FROM"
 		}
 		return fmt.Sprintf("GRANT EXECUTE PROCEDURE %s ON %s %s `%s`", procedureName, databaseScope, toFrom, role), nil
+	}
+
+	// Special handling for EXECUTE USER DEFINED FUNCTION - syntax is similar to EXECUTE PROCEDURE
+	if rawAction == "execute_user_defined_function" {
+		functionName := "*"
+		if rawResource != "" && rawResource != "*" {
+			// Handle function(name) format or just name (supports wildcards like apoc.convert.*)
+			if strings.Contains(rawResource, "function(") {
+				functionName = between(rawResource, "(", ")")
+			} else {
+				functionName = rawResource
+			}
+		}
+		// EXECUTE USER DEFINED FUNCTION is always DBMS-level
+		toFrom := "TO"
+		if revoke {
+			toFrom = "FROM"
+		}
+		return fmt.Sprintf("GRANT EXECUTE USER DEFINED FUNCTION %s ON DBMS %s `%s`", functionName, toFrom, role), nil
 	}
 
 	if strings.Contains(rawResource, "property(") || strings.Contains(rawResource, "label(") {

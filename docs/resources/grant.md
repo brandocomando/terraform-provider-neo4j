@@ -29,6 +29,14 @@ resource "neo4j_grant" "execute_procedure" {
   role     = neo4j_role.my_role.name
   resource = "db.schema.visualization"  # Specific procedure, or "*" for all
 }
+
+# Grant execute user defined function privilege
+resource "neo4j_grant" "execute_function" {
+  action   = "execute_user_defined_function"
+  graph    = "DBMS"  # Always DBMS-level for user defined functions
+  role     = neo4j_role.my_role.name
+  resource = "apoc.convert.*"  # Function name with wildcards, or "*" for all
+}
 ```
 
 ## Argument Reference
@@ -38,7 +46,7 @@ The following arguments are supported:
 * `action` - (Required) The privilege name of the grant. It can be both related to databases or graphs. See [available actions](#available-actions) below for valid values. Please read [the offical documentation](https://neo4j.com/docs/cypher-manual/current/access-control/manage-roles/) for more information.
 * `graph` - (Required) The name of the database or graph associated with the grant. it can be "*" or the specific database or graph name.
 * `role` - (Required) The role associated with the grant.
-* `resource` - (Optional) The resource associated with the grant. Valid values are (depending on the type of action) `all_labels`, `all_properties`,`graph`,`database`,`label(<value>)`,`property(<value>)`. For `execute_procedure` action, this can be a procedure name (e.g., `db.schema.visualization`) or `*` for all procedures.
+* `resource` - (Optional) The resource associated with the grant. Valid values are (depending on the type of action) `all_labels`, `all_properties`,`graph`,`database`,`label(<value>)`,`property(<value>)`. For `execute_procedure` action, this can be a procedure name (e.g., `db.schema.visualization`) or `*` for all procedures. For `execute_user_defined_function` action, this can be a function name with wildcards (e.g., `apoc.convert.*`) or `*` for all functions.
 * `segment` - (Optional) In the case of graph related grant, you can specify the segment of the grant. Valid values are `NODE(*)`, `RELATIONSHIP(*)`, `NODE(<value>)`, `RELATIONSHIP(<value>)`.
 
 ### Available actions
@@ -73,6 +81,7 @@ The following arguments are supported:
 * database_actions (ALL DATABASE PRIVILEGES)
 * transaction_management (TRANSACTION MANAGEMENT)
 * execute_procedure (EXECUTE PROCEDURE)
+* execute_user_defined_function (EXECUTE USER DEFINED FUNCTION)
 
 ## Attribute Reference
 
